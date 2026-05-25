@@ -1,0 +1,26 @@
+{
+  "project_name": "Mini_EDA_Processor",
+  "target_frequency_mhz": 800,
+  "stages": [
+    {
+      "name": "compile",
+      "critical": true,
+      "error_chance_percentage": 10
+    },
+    {
+      "name": "elaboration",
+      "critical": true,
+      "error_chance_percentage": 15
+    },
+    {
+      "name": "synthesis",
+      "critical": true,
+      "error_chance_percentage": 25
+    },
+    {
+      "name": "sta",
+      "critical": false,
+      "error_chance_percentage": 40
+    }
+  ]
+}
