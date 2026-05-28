@@ -1,15 +1,15 @@
 ==================================================================
-EDA TOOL RUN LOG -- STAGE: {STAGE_NAME}
+EDA TOOL RUN LOG -- STAGE: sta
 ==================================================================
 [INFO] Initializing design environment...
 [INFO] Reading technology library cells...
-[INFO] Analyzing clock tree for target frequency: {FREQ} MHz.
+[INFO] Analyzing clock tree for target frequency: 800 MHz.
 
 --- DESIGN METRICS ---
-[DATA] Total Gate Count = {GATE_COUNT}
-[DATA] Worst Negative Slack (WNS) = {SLACK} ns
+[DATA] Total Gate Count = 11101
+[DATA] Worst Negative Slack (WNS) = -.30 ns
 
 --- RUN STATUS ---
-[STATUS] Finished execution of stage: {STAGE_NAME}
-[RESULT] {STATUS_RESULT}
+[STATUS] Finished execution of stage: sta
+[RESULT] SUCCESS
 ==================================================================
