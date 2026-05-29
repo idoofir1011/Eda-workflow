@@ -1,6 +1,14 @@
-import os
-import re
-import sys
+import os, re, sys, argparse, json
+
+
+def load_config(path):
+    path = os.path.abspath(path)
+    with open(path, "r") as f:
+        return json.load(f)
+
+
+
+
 
 
 def analyze_logs():
@@ -74,4 +82,18 @@ def analyze_logs():
 
 
 if __name__ == "__main__":
-    analyze_logs()
+    parser = argparse.ArgumentParser(description="Analyze EDA flow logs")
+    parser.add_argument(
+        "--logs-dir", default="logs", help="Directory containing .log files"
+    )
+    parser.add_argument(
+        "--output", default="summary_report.md", help="Output report path"
+    )
+    parser.add_argument(
+        "--config", default="config/global_cfg.json", help="JSON config path"
+    )
+    parser.add_argument("--verbose", action="store_true", help="Verbose output")
+    args = parser.parse_args()
+
+    cfg = load_config(args.config)
+    analyze_logs(args.logs_dir, cfg, args.output, args.verbose)
