@@ -6,10 +6,10 @@ EDA TOOL RUN LOG -- STAGE: compile
 [INFO] Analyzing clock tree for target frequency: 800 MHz.
 
 --- DESIGN METRICS ---
-[DATA] Total Gate Count = 20397
-[DATA] Worst Negative Slack (WNS) = .20 ns
+[DATA] Total Gate Count = 31526
+[DATA] Worst Negative Slack (WNS) = -0.10 ns
 
 --- RUN STATUS ---
 [STATUS] Finished execution of stage: compile
-[RESULT] SUCCESS
+[RESULT] ERROR: Timing violations detected! WNS is negative.
 ==================================================================

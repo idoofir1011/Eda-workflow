@@ -1,4 +1,9 @@
-import os, re, sys, argparse, json
+import os
+import re
+import sys
+import argparse
+import json
+from report_generator import generate_markdown_report, generate_html_report
 
 
 def load_config(path):
@@ -7,12 +12,20 @@ def load_config(path):
         return json.load(f)
 
 
-
-def analyze_logs():
-    logs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "logs"))
-    report_path = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "summary_report.md")
-    )
+def analyze_logs(logs_dir=None, config=None, output_path=None, verbose=False):
+    if logs_dir:
+        logs_dir = os.path.abspath(logs_dir)
+    else:
+        logs_dir = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "logs")
+        )
+        
+    if output_path:
+        report_path = os.path.abspath(output_path)
+    else:
+        report_path = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "summary_report.md")
+        )
 
     if not os.path.exists(logs_dir):
         print(f"Error: Logs directory not found at {logs_dir}")
@@ -34,6 +47,8 @@ def analyze_logs():
 
     for file_name in sorted(log_files):
         file_path = os.path.join(logs_dir, file_name)
+        if verbose:
+            print(f"[DEBUG] Reading log: {file_path}")
         with open(file_path, "r") as f:
             content = f.read()
 
@@ -63,7 +78,15 @@ def analyze_logs():
                 }
             )
 
-   
+        generate_markdown_report(report_data, report_path, flow_status)
+
+    if report_path.lower().endswith(".md"):
+        html_path = report_path[:-3] + ".html"
+    else:
+        html_path = report_path + ".html"
+    generate_html_report(report_data, html_path, flow_status)
+
+    print(f"Analysis complete. Reports generated at: {report_path} and {html_path}")
 
 
 if __name__ == "__main__":
