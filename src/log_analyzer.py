@@ -8,9 +8,6 @@ def load_config(path):
 
 
 
-
-
-
 def analyze_logs():
     logs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "logs"))
     report_path = os.path.abspath(
@@ -66,19 +63,7 @@ def analyze_logs():
                 }
             )
 
-    with open(report_path, "w") as r:
-        r.write("# EDA Flow Execution Summary Report\n\n")
-        r.write(f"**Overall Flow Status:** {flow_status}\n\n")
-        r.write("## Stages Metrics Table\n\n")
-        r.write("| Stage Name | Status | Gate Count | WNS (ns) | Details |\n")
-        r.write("|------------|--------|------------|----------|---------|\n")
-
-        for data in report_data:
-            r.write(
-                f"| {data['stage']} | {data['status']} | {data['gates']} | {data['slack']} | {data['details']} |\n"
-            )
-
-    print(f"Analysis complete. Report generated at: {report_path}")
+   
 
 
 if __name__ == "__main__":
