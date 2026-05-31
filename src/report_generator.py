@@ -18,15 +18,6 @@ def generate_md_report(data, out, flow_status):
     print(f"Analysis complete. Report generated at: {out}")
 
 
-def generate_html_report(data, out):
-    rows = "".join(
-        f"<tr><td>{d['stage']}</td><td>{d['status']}</td>...</tr>" for d in data
-    )
-    html = f"<html><body><h1>Report</h1><table>{rows}</table></body></html>"
-    with open(out, "w") as f:
-        f.write(html)
-
-
 def generate_markdown_report(
     report_data: List[Dict], output_path: str, overall_status: str
 ) -> None:

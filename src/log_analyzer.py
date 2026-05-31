@@ -10,6 +10,44 @@ def load_config(path):
     path = os.path.abspath(path)
     with open(path, "r") as f:
         return json.load(f)
+    
+
+def parse_log(content):
+    stage_re = re.compile(r"EDA TOOL RUN LOG -- STAGE:\s*(\w+)", re.IGNORECASE)
+    gate_re = re.compile(r"Total Gate Count =\s*(\d+)")
+    slack_re = re.compile(r"Worst Negative Slack \(WNS\) =\s*([-\d.]+)\s*ns")
+    status_re = re.compile(r"\[RESULT\]\s*(.*)")
+
+    stage_match = stage_re.search(content)
+    if not stage_match:
+        return {
+            "stage": "UNKNOWN",
+            "gates": "N/A",
+            "slack": "N/A",
+            "details": "NO_STAGE",
+            "status": "🔴 FAIL",
+        }
+
+    stage = stage_match.group(1).upper()
+    gates = gate_re.search(content)
+    slack = slack_re.search(content)
+    status = status_re.search(content)
+
+    gates_val = gates.group(1) if gates else "N/A"
+    slack_val = slack.group(1) if slack else "N/A"
+    details = status.group(1).strip() if status else "UNKNOWN"
+
+    status_icon = "🟢 PASS"
+    if "ERROR" in details or "FAIL" in details:
+        status_icon = "🔴 FAIL"
+
+    return {
+        "stage": stage,
+        "gates": gates_val,
+        "slack": slack_val,
+        "details": details,
+        "status": status_icon,
+    }
 
 
 def analyze_logs(logs_dir=None, config=None, output_path=None, verbose=False):
@@ -19,7 +57,7 @@ def analyze_logs(logs_dir=None, config=None, output_path=None, verbose=False):
         logs_dir = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "..", "logs")
         )
-        
+
     if output_path:
         report_path = os.path.abspath(output_path)
     else:
@@ -87,6 +125,8 @@ def analyze_logs(logs_dir=None, config=None, output_path=None, verbose=False):
     generate_html_report(report_data, html_path, flow_status)
 
     print(f"Analysis complete. Reports generated at: {report_path} and {html_path}")
+
+
 
 
 if __name__ == "__main__":
