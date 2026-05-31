@@ -1,4 +1,8 @@
-from src.log_analyzer import parse_log
+from src.log_analyzer import parse_log, load_config, analyze_logs
+import json
+import pytest
+import os
+
 
 def test_parse_log_success():
     sample = (
@@ -19,6 +23,7 @@ def test_parse_log_success():
     assert "SUCCESS" in parsed["details"]
     assert parsed["status"].startswith("🟢")
 
+
 def test_parse_log_error():
     sample = (
         "EDA TOOL RUN LOG -- STAGE: compile\n"
@@ -32,3 +37,85 @@ def test_parse_log_error():
     assert parsed["slack"] == "-0.25"
     assert "ERROR" in parsed["details"]
     assert parsed["status"].startswith("🔴")
+
+
+def test_parse_log_missing_stage():
+    sample = (
+        "[DATA] Total Gate Count = 1000\n"
+        "[DATA] Worst Negative Slack (WNS) = 1.00 ns\n"
+        "[RESULT] NO STAGE HEADER PRESENT\n"
+    )
+    parsed = parse_log(sample)
+    assert parsed["stage"] == "UNKNOWN"
+    assert parsed["gates"] == "N/A"
+    assert parsed["slack"] == "N/A"
+    assert parsed["details"] == "NO_STAGE"
+    assert parsed["status"].startswith("🔴")
+
+
+def test_load_config(tmp_path):
+    cfg = {"flow": "test", "option": 1}
+    cfg_file = tmp_path / "cfg.json"
+    cfg_file.write_text(json.dumps(cfg))
+    loaded = load_config(str(cfg_file))
+    assert loaded == cfg
+
+
+def test_analyze_logs_no_logs(tmp_path):
+    logs_dir = tmp_path / "logs_empty"
+    logs_dir.mkdir()
+    with pytest.raises(SystemExit) as exc:
+        analyze_logs(
+            str(logs_dir),
+            config=None,
+            output_path=str(tmp_path / "out.md"),
+            verbose=False,
+        )
+    assert exc.value.code == 0
+
+
+def test_analyze_logs_creates_reports(tmp_path, monkeypatch):
+    logs_dir = tmp_path / "logs"
+    logs_dir.mkdir()
+
+    synth = (
+        "EDA TOOL RUN LOG -- STAGE: synthesis\n"
+        "[DATA] Total Gate Count = 111\n"
+        "[DATA] Worst Negative Slack (WNS) = 0.50 ns\n"
+        "[RESULT] SUCCESS\n"
+    )
+    compile_err = (
+        "EDA TOOL RUN LOG -- STAGE: compile\n"
+        "[DATA] Total Gate Count = 222\n"
+        "[DATA] Worst Negative Slack (WNS) = -0.75 ns\n"
+        "[RESULT] ERROR: timing\n"
+    )
+
+    (logs_dir / "01-synthesis.log").write_text(synth)
+    (logs_dir / "02-compile.log").write_text(compile_err)
+
+    calls = {"md": [], "html": []}
+
+    def fake_md(report_data, report_path, flow_status):
+        # store copies to avoid mutation issues
+        calls["md"].append((list(report_data), report_path, flow_status))
+
+    def fake_html(report_data, report_path, flow_status):
+        calls["html"].append((list(report_data), report_path, flow_status))
+
+    monkeypatch.setattr("src.log_analyzer.generate_markdown_report", fake_md)
+    monkeypatch.setattr("src.log_analyzer.generate_html_report", fake_html)
+
+    out_md = tmp_path / "summary_report.md"
+    analyze_logs(str(logs_dir), config=None, output_path=str(out_md), verbose=False)
+
+    # markdown report should be generated at least once (called inside loop)
+    assert len(calls["md"]) >= 1
+    # html report should be generated once at end
+    assert len(calls["html"]) == 1
+
+    _, _, html_status = calls["html"][0]
+    report_data, _, _ = calls["html"][0]
+    stages = {entry["stage"] for entry in report_data}
+    assert stages == {"SYNTHESIS", "COMPILE"}
+    assert html_status == "FAILED"

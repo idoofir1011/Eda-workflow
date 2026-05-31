@@ -3,14 +3,14 @@ import re
 import sys
 import argparse
 import json
-from report_generator import generate_markdown_report, generate_html_report
+from src.report_generator import generate_markdown_report, generate_html_report
 
 
 def load_config(path):
     path = os.path.abspath(path)
     with open(path, "r") as f:
         return json.load(f)
-    
+
 
 def parse_log(content):
     stage_re = re.compile(r"EDA TOOL RUN LOG -- STAGE:\s*(\w+)", re.IGNORECASE)
@@ -125,8 +125,6 @@ def analyze_logs(logs_dir=None, config=None, output_path=None, verbose=False):
     generate_html_report(report_data, html_path, flow_status)
 
     print(f"Analysis complete. Reports generated at: {report_path} and {html_path}")
-
-
 
 
 if __name__ == "__main__":
