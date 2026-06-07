@@ -75,11 +75,6 @@ def analyze_logs(logs_dir=None, config=None, output_path=None, verbose=False):
         print("No log files found to analyze.")
         sys.exit(0)
 
-    stage_re = re.compile(r"EDA TOOL RUN LOG -- STAGE:\s*(\w+)")
-    gate_re = re.compile(r"Total Gate Count =\s*(\d+)")
-    slack_re = re.compile(r"Worst Negative Slack \(WNS\) =\s*([-\d.]+)\s*ns")
-    status_re = re.compile(r"\[RESULT\]\s*(.*)")
-
     report_data = []
     flow_status = "PASSED"
 
@@ -90,34 +85,12 @@ def analyze_logs(logs_dir=None, config=None, output_path=None, verbose=False):
         with open(file_path, "r") as f:
             content = f.read()
 
-        stage_match = stage_re.search(content)
-        gate_match = gate_re.search(content)
-        slack_match = slack_re.search(content)
-        status_match = status_re.search(content)
+        parsed_log = parse_log(content)
+        report_data.append(parsed_log)
+        if "FAIL" in parsed_log["status"]:
+            flow_status = "FAILED"
 
-        if stage_match:
-            stage = stage_match.group(1).upper()
-            gates = gate_match.group(1) if gate_match else "N/A"
-            slack = slack_match.group(1) if slack_match else "N/A"
-            result = status_match.group(1).strip() if status_match else "UNKNOWN"
-
-            status_icon = "🟢 PASS"
-            if "ERROR" in result or "FAIL" in result:
-                status_icon = "🔴 FAIL"
-                flow_status = "FAILED"
-
-            report_data.append(
-                {
-                    "stage": stage,
-                    "status": status_icon,
-                    "gates": gates,
-                    "slack": slack,
-                    "details": result,
-                }
-            )
-
-        generate_markdown_report(report_data, report_path, flow_status)
-
+    generate_markdown_report(report_data, report_path, flow_status)
     if report_path.lower().endswith(".md"):
         html_path = report_path[:-3] + ".html"
     else:

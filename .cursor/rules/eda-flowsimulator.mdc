@@ -1,0 +1,82 @@
+---
+description: Rules for EDA Flow Simulator — small Python/bash learning project
+globs:
+  - "**/*.py"
+  - "**/*.sh"
+  - "config/**"
+  - "tests/**"
+  - "docs/**"
+alwaysApply: false
+---
+
+# EDA Flow Simulator — Cursor Rules
+
+## Project goal
+
+Small, config-driven flow simulator that fakes compile → elaboration → synthesis → STA, writes tool-style logs, parses metrics (gate count, WNS), and generates Markdown/HTML reports. This is a **learning / portfolio** project — not production EDA infrastructure.
+
+**Avoid scope creep:** no LSF/Slurm, job DAGs, Kubernetes, real Synopsys/Cadence integration, or web dashboards unless explicitly requested.
+
+## Stack
+
+- Python 3.12, bash, pytest, JSON config
+- Virtual environment at `.venv` (not `venv`)
+- Key paths:
+  - Runner: `scripts/run_flow.sh`
+  - Config: `config/global_cfg.json`
+  - Parser: `src/log_analyzer.py`
+  - Reports: `src/report_generator.py`
+  - Tests: `tests/test_log_analyzer.py`
+  - Plan: `docs/EDA_PROJECT_PLAN.md`
+
+## Architecture
+
+```
+global_cfg.json → run_flow.sh → logs/*.log → parse_log() → report (MD + HTML)
+```
+
+- Runner produces one `.log` per stage from `templates/fake_synth.log` via `sed`.
+- `parse_log(content)` is the single source of truth for regex extraction.
+- `analyze_logs()` should call `parse_log()` per file — do not duplicate regex logic.
+- Reports are written once after all logs are processed.
+
+## Coding conventions
+
+- Match existing style in `src/log_analyzer.py` and `src/report_generator.py`.
+- Minimal diffs — fix the task, don't refactor unrelated code.
+- No over-abstraction (no plugin frameworks, no unnecessary classes).
+- Comments only for non-obvious logic.
+- Do not add heavy dependencies; `requirements.txt` stays minimal (pytest).
+
+## Known improvements (prefer these when relevant)
+
+1. Wire `config/global_cfg.json` into `run_flow.sh` (stages, MHz, `error_chance_percentage`, `critical`).
+2. Refactor `analyze_logs()` to use `parse_log()` only; write reports once after the loop.
+3. Use config inside `analyze_logs()` (paths, thresholds, project name).
+4. Run directories: `runs/<timestamp>/logs/` + `manifest.json`.
+5. Keep `README.md` in sync with real paths and commands.
+
+## Testing
+
+- Run `pytest -v` after any Python change.
+- Extend `tests/test_log_analyzer.py` when adding parser or analyzer behavior.
+- Do not break existing tests for `parse_log`, `load_config`, `analyze_logs`.
+
+## Documentation
+
+- Update checkboxes in `docs/EDA_PROJECT_PLAN.md` when phases complete.
+- Fix README when changing run commands or directory layout.
+- Do not create new markdown files unless the user asks.
+
+## Do not
+
+- Create git commits unless the user explicitly requests.
+- Use `./venv` — correct path is `source .venv/bin/activate`.
+
+## AI assistance guidance
+
+When helping the intern:
+
+- Explain terms in plain English (WNS, critical stage, golden, regression).
+- Propose the smallest change that satisfies the current phase in `docs/EDA_PROJECT_PLAN.md`.
+- After changes, remind to run `pytest -v` and `./scripts/run_flow.sh`.

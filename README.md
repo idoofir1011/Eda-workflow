@@ -23,6 +23,30 @@ Getting started
 python3 log_analyzer.py
 ```
 
+
+Tests
+# Running Tests
+
+To run all unit tests using pytest (with verbose output), use:
+
+```bash
+pytest -v
+```
+
+Or, to run only unittest-based tests (also verbose):
+
+```bash
+python3 -m unittest discover -s tests -p "test*.py" -v
+```
+
+Make sure pytest is installed:
+
+```bash
+pip install pytest
+```
+
+
+
 Notes
 - This project is intentionally simple and intended for learning purposes.
 - Contributions and improvements are welcome.

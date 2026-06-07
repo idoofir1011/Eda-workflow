@@ -13,8 +13,25 @@ echo "========================================"
 echo " Starting Mini EDA Flow Simulator "
 echo "========================================"
 
-STAGES=("compile" "elaboration" "synthesis" "sta")
-FREQ=800
+mapfile -t STAGES < <(python3 - <<'PY'
+import json
+
+with open("config/global_cfg.json", encoding="utf-8") as f:
+    config = json.load(f)
+
+for stage in config["stages"]:
+    print(stage["name"])
+PY
+)
+FREQ=$(python3 - <<'PY'
+import json
+
+with open("config/global_cfg.json", encoding="utf-8") as f:
+    config = json.load(f)
+
+print(config["target_frequency_mhz"])
+PY
+)
 
 for STAGE in "${STAGES[@]}"; do
     echo -n "Running stage: [${STAGE^^}] ... "
