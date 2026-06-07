@@ -1,53 +1,46 @@
 # EDA Flow Simulator
 
-A small personal project that simulates VLSI-like workflows. It demonstrates a simple, reproducible flow for learning and experimentation.
+A small personal project that simulates VLSI-like workflows. It demonstrates a config-driven compile → elaboration → synthesis → STA flow for learning and experimentation.
 
-Project overview
-- config.json: flow configuration
-- run_flow.sh: runs the simulated flow and generates logs
-- fake_logs/: directory containing generated log files
-- log_analyzer.py: analyzes logs and extracts metrics
-- summary_report: final report produced by the analyzer
+## Project layout
 
-Getting started
-1. Update config.json with desired settings.
-2. Run the flow:
+| Path | Purpose |
+|------|---------|
+| `config/global_cfg.json` | Flow config: stages, MHz, critical flags, error rates |
+| `scripts/run_flow.sh` | Runs the simulated flow and writes logs |
+| `logs/` | Generated `.log` files (one per stage) |
+| `src/log_analyzer.py` | Parses logs and generates summary reports |
+| `src/report_generator.py` | Markdown and HTML report formatting |
+| `templates/fake_synth.log` | Log template used by the runner |
+| `summary_report.md` / `.html` | Reports produced by the analyzer |
+
+## Getting started
+
+From the project root:
 
 ```bash
-./run_flow.sh
+# Activate virtual environment (first time: python3 -m venv .venv)
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the simulated flow
+./scripts/run_flow.sh
+
+# Analyze logs and generate reports
+python3 -m src.log_analyzer --logs-dir logs --output summary_report.md --config config/global_cfg.json
 ```
 
-3. Analyze logs (if not run automatically):
+Edit `config/global_cfg.json` to change stages, target frequency, per-stage error rates, or which stages halt the flow on failure.
 
-```bash
-python3 log_analyzer.py
-```
-
-
-Tests
-# Running Tests
-
-To run all unit tests using pytest (with verbose output), use:
+## Tests
 
 ```bash
 pytest -v
 ```
 
-Or, to run only unittest-based tests (also verbose):
+## Notes
 
-```bash
-python3 -m unittest discover -s tests -p "test*.py" -v
-```
-
-Make sure pytest is installed:
-
-```bash
-pip install pytest
-```
-
-
-
-Notes
 - This project is intentionally simple and intended for learning purposes.
-- Contributions and improvements are welcome.
-
+- See `docs/EDA_PROJECT_PLAN.md` for the phased roadmap.
