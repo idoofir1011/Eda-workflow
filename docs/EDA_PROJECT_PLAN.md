@@ -181,6 +181,17 @@ pytest -v
 
 ## Using AI to speed up
 
+### Prompt template
+
+```text
+@[plan or spec]
+@[1-2 files to change]
+@[tests if any]
+
+Task: [one sentence]
+Constraints: minimal diff, keep pytest green, beginner-friendly explanation
+```
+
 AI is useful for:
 
 - Wiring `jq` or Python config loading into the shell runner.
