@@ -72,6 +72,16 @@ global_cfg.json → run_flow.sh → logs/*.log → parse_log() → report (MD + 
 
 - Create git commits unless the user explicitly requests.
 - Use `./venv` — correct path is `source .venv/bin/activate`.
+- Add `Co-authored-by`, `Signed-off-by`, or any trailer attributing Cursor, AI, or an agent to commits.
+- Mention in commit messages, PR descriptions, or docs that an agent or AI wrote the code.
+
+## Git commits
+
+When the user asks for a commit:
+
+- Author is always the user only — no AI co-author trailers.
+- Use a concise, professional message focused on what changed and why.
+- Stage only task-related files; exclude logs, `__pycache__`, and generated reports unless explicitly requested.
 
 ## AI assistance guidance
 

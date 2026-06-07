@@ -34,6 +34,16 @@ python3 -m src.log_analyzer --logs-dir logs --output summary_report.md --config 
 
 Edit `config/global_cfg.json` to change stages, target frequency, per-stage error rates, or which stages halt the flow on failure.
 
+## Exit codes
+
+| Code | Component | Meaning |
+|------|-----------|---------|
+| `0` | `run_flow.sh` / `log_analyzer` | All stages passed; analysis completed with no failures. |
+| `1` | `run_flow.sh` / `log_analyzer` | Stage failure (critical halt or any failed stage, including non-critical STA). |
+| `2` | `log_analyzer` | Analysis error (e.g. logs directory not found). |
+
+The runner clears `logs/*.log` at the start of each run so a partial failure does not leave stale logs from earlier stages.
+
 ## Tests
 
 ```bash

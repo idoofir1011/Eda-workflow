@@ -2,12 +2,16 @@
 
 cd "$(dirname "$0")/.." || exit
 
-CONFIG_FILE="config/global_cfg.json"
+CONFIG_FILE="${CONFIG_FILE:-config/global_cfg.json}"
 export CONFIG_FILE
 TEMPLATE_FILE="templates/fake_synth.log"
-LOGS_DIR="logs"
+LOGS_DIR="${LOGS_DIR:-logs}"
+SLEEP_SEC="${FLOW_SLEEP:-0.5}"
 
 mkdir -p "$LOGS_DIR"
+rm -f "$LOGS_DIR"/*.log
+
+ANY_FAILURE=0
 
 echo "========================================"
 echo " Starting Mini EDA Flow Simulator "
@@ -15,8 +19,9 @@ echo "========================================"
 
 FREQ=$(python3 - <<'PY'
 import json
+import os
 
-with open("config/global_cfg.json", encoding="utf-8") as f:
+with open(os.environ["CONFIG_FILE"], encoding="utf-8") as f:
     config = json.load(f)
 
 print(config["target_frequency_mhz"])
@@ -25,7 +30,7 @@ PY
 
 while IFS=$'\t' read -r STAGE CRITICAL ERROR_CHANCE; do
     echo -n "Running stage: [${STAGE^^}] ... "
-    sleep 0.5
+    sleep "$SLEEP_SEC"
 
     GATE_COUNT=$(( ( RANDOM % 100000 ) + 5000 ))
     ROLL=$(( RANDOM % 100 ))
@@ -51,6 +56,7 @@ while IFS=$'\t' read -r STAGE CRITICAL ERROR_CHANCE; do
 
     if [[ "$STATUS_RESULT" == *"ERROR"* ]]; then
         echo "FAILED ❌"
+        ANY_FAILURE=1
         if [[ "$CRITICAL" == "True" ]]; then
             echo "----------------------------------------"
             echo "Critical stage [$STAGE] failed. Halting EDA Flow."
@@ -62,8 +68,9 @@ while IFS=$'\t' read -r STAGE CRITICAL ERROR_CHANCE; do
     fi
 done < <(python3 - <<'PY'
 import json
+import os
 
-with open("config/global_cfg.json", encoding="utf-8") as f:
+with open(os.environ["CONFIG_FILE"], encoding="utf-8") as f:
     config = json.load(f)
 
 for stage in config["stages"]:
@@ -72,5 +79,11 @@ PY
 )
 
 echo "========================================"
-echo "EDA Flow Finished. Logs are ready!"
+if [ "$ANY_FAILURE" -eq 1 ]; then
+    echo "EDA Flow Finished with failures. Logs are ready!"
+else
+    echo "EDA Flow Finished. Logs are ready!"
+fi
 echo "========================================"
+
+exit "$ANY_FAILURE"

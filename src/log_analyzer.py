@@ -67,7 +67,7 @@ def analyze_logs(logs_dir=None, config=None, output_path=None, verbose=False):
 
     if not os.path.exists(logs_dir):
         print(f"Error: Logs directory not found at {logs_dir}")
-        sys.exit(1)
+        sys.exit(2)
 
     log_files = [f for f in os.listdir(logs_dir) if f.endswith(".log")]
 
@@ -99,6 +99,9 @@ def analyze_logs(logs_dir=None, config=None, output_path=None, verbose=False):
     generate_html_report(report_data, html_path, flow_status, project_name)
 
     print(f"Analysis complete. Reports generated at: {report_path} and {html_path}")
+
+    if flow_status == "FAILED":
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -106,7 +106,9 @@ def test_analyze_logs_creates_reports(tmp_path, monkeypatch):
     monkeypatch.setattr("src.log_analyzer.generate_html_report", fake_html)
 
     out_md = tmp_path / "summary_report.md"
-    analyze_logs(str(logs_dir), config=None, output_path=str(out_md), verbose=False)
+    with pytest.raises(SystemExit) as exc:
+        analyze_logs(str(logs_dir), config=None, output_path=str(out_md), verbose=False)
+    assert exc.value.code == 1
 
     # markdown and html reports are written once after all logs are processed
     assert len(calls["md"]) == 1

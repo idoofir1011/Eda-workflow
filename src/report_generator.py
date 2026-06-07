@@ -2,22 +2,6 @@ import html
 from typing import List, Dict
 
 
-def generate_md_report(data, out, flow_status):
-    with open(data, "w") as r:
-        r.write("# EDA Flow Execution Summary Report\n\n")
-        r.write(f"**Overall Flow Status:** {flow_status}\n\n")
-        r.write("## Stages Metrics Table\n\n")
-        r.write("| Stage Name | Status | Gate Count | WNS (ns) | Details |\n")
-        r.write("|------------|--------|------------|----------|---------|\n")
-
-        for stage in data:
-            r.write(
-                f"| {stage['stage']} | {stage['status']} | {stage['gates']} | {stage['slack']} | {stage['details']} |\n"
-            )
-
-    print(f"Analysis complete. Report generated at: {out}")
-
-
 def generate_markdown_report(
     report_data: List[Dict],
     output_path: str,

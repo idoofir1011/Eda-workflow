@@ -60,15 +60,16 @@ flowchart LR
 - `tests/test_log_analyzer.py` has pytest coverage for parsing and analysis.
 - Virtual environment lives at `.venv` (not `venv`).
 
-### Known gaps (fix these in Phase 1)
+### Known gaps (next work)
 
 | Gap | Where | What to fix |
 |-----|-------|-------------|
-| Config not driving the runner | `scripts/run_flow.sh` | Stages and `FREQ=800` are hardcoded; `error_chance_percentage` in JSON is unused. |
-| Duplicate parsing logic | `src/log_analyzer.py` | `parse_log()` exists but `analyze_logs()` reimplements the same regexes in a loop. |
-| Config loaded but unused | `src/log_analyzer.py` | `load_config()` runs in `__main__` but `analyze_logs()` never uses the config. |
-| Report written inside loop | `src/log_analyzer.py` | `generate_markdown_report()` is called on every log file instead of once at the end. |
-| README outdated | `README.md` | References `config.json`, `./run_flow.sh`, `fake_logs/` — real paths differ. |
+| Logs always land in `logs/` | `scripts/run_flow.sh` | Phase 2: per-run folders under `runs/<timestamp>/`. |
+| Config does not set log/report paths | `src/log_analyzer.py` | Phase 2: `--run-dir` or config keys for output paths. |
+| No WNS threshold in config | `config/global_cfg.json` | Phase 3 (optional): `wns_min_ns` for pass/fail in reports. |
+| No golden regression | — | Phase 4: compare metrics vs saved baseline. |
+
+**Recently fixed:** config-driven runner (stages, MHz, error rates, critical halt), single `parse_log()` path, reports written once, README paths, stale log cleanup at run start, runner/analyzer exit codes, shell integration tests.
 
 ---
 
@@ -100,10 +101,18 @@ flowchart TD
 - [x] Respect `critical` flag: halt on failure for critical stages; allow STA to fail and continue (already partially there).
 - [x] Refactor `analyze_logs()` to call `parse_log()` for each file — remove duplicate regex block.
 - [x] Write Markdown and HTML reports **once** after processing all logs.
-- [x] Pass config into `analyze_logs()` and use it (paths, thresholds, project name in report header).
+- [x] Pass config into `analyze_logs()` and use `project_name` in the report header (log/report paths → Phase 2).
 - [x] Fix `README.md` paths and commands.
 
 **Done when:** Changing `error_chance_percentage` in JSON visibly changes failure rate; `pytest -v` still passes; README matches the repo.
+
+**Exit codes (runner and analyzer):**
+
+| Code | Meaning |
+|------|---------|
+| `0` | All stages passed (runner) or analysis completed with no failed stages (analyzer). |
+| `1` | Stage failure — critical halt, non-critical failure at end of flow, or analyzer found failed stages in logs. |
+| `2` | Analysis error (e.g. logs directory missing). |
 
 ---
 
@@ -126,7 +135,7 @@ flowchart TD
 
 - [ ] All existing tests pass; add tests for any new config-driven behavior.
 - [ ] Optional: add `wns_min_ns` threshold in config — report marks timing fail if WNS is below threshold.
-- [ ] Document exit codes: `0` = success, `1` = stage failure, `2` = analysis failure (or similar).
+- [x] Document exit codes: `0` = success, `1` = stage failure, `2` = analysis failure (or similar).
 
 **Done when:** `pytest -v` green; you can explain what each test checks in an interview.
 
