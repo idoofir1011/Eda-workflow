@@ -77,6 +77,7 @@ def analyze_logs(logs_dir=None, config=None, output_path=None, verbose=False):
 
     report_data = []
     flow_status = "PASSED"
+    project_name = (config or {}).get("project_name", "EDA Flow")
 
     for file_name in sorted(log_files):
         file_path = os.path.join(logs_dir, file_name)
@@ -90,12 +91,12 @@ def analyze_logs(logs_dir=None, config=None, output_path=None, verbose=False):
         if "FAIL" in parsed_log["status"]:
             flow_status = "FAILED"
 
-    generate_markdown_report(report_data, report_path, flow_status)
+    generate_markdown_report(report_data, report_path, flow_status, project_name)
     if report_path.lower().endswith(".md"):
         html_path = report_path[:-3] + ".html"
     else:
         html_path = report_path + ".html"
-    generate_html_report(report_data, html_path, flow_status)
+    generate_html_report(report_data, html_path, flow_status, project_name)
 
     print(f"Analysis complete. Reports generated at: {report_path} and {html_path}")
 

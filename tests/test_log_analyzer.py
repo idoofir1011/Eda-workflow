@@ -96,12 +96,11 @@ def test_analyze_logs_creates_reports(tmp_path, monkeypatch):
 
     calls = {"md": [], "html": []}
 
-    def fake_md(report_data, report_path, flow_status):
-        # store copies to avoid mutation issues
-        calls["md"].append((list(report_data), report_path, flow_status))
+    def fake_md(report_data, report_path, flow_status, project_name="EDA Flow"):
+        calls["md"].append((list(report_data), report_path, flow_status, project_name))
 
-    def fake_html(report_data, report_path, flow_status):
-        calls["html"].append((list(report_data), report_path, flow_status))
+    def fake_html(report_data, report_path, flow_status, project_name="EDA Flow"):
+        calls["html"].append((list(report_data), report_path, flow_status, project_name))
 
     monkeypatch.setattr("src.log_analyzer.generate_markdown_report", fake_md)
     monkeypatch.setattr("src.log_analyzer.generate_html_report", fake_html)
@@ -109,13 +108,42 @@ def test_analyze_logs_creates_reports(tmp_path, monkeypatch):
     out_md = tmp_path / "summary_report.md"
     analyze_logs(str(logs_dir), config=None, output_path=str(out_md), verbose=False)
 
-    # markdown report should be generated at least once (called inside loop)
-    assert len(calls["md"]) >= 1
-    # html report should be generated once at end
+    # markdown and html reports are written once after all logs are processed
+    assert len(calls["md"]) == 1
     assert len(calls["html"]) == 1
 
-    _, _, html_status = calls["html"][0]
-    report_data, _, _ = calls["html"][0]
+    report_data, _, html_status, _ = calls["html"][0]
     stages = {entry["stage"] for entry in report_data}
     assert stages == {"SYNTHESIS", "COMPILE"}
     assert html_status == "FAILED"
+
+
+def test_analyze_logs_uses_project_name_from_config(tmp_path, monkeypatch):
+    logs_dir = tmp_path / "logs"
+    logs_dir.mkdir()
+    (logs_dir / "synthesis.log").write_text(
+        "EDA TOOL RUN LOG -- STAGE: synthesis\n"
+        "[DATA] Total Gate Count = 100\n"
+        "[DATA] Worst Negative Slack (WNS) = 0.10 ns\n"
+        "[RESULT] SUCCESS\n"
+    )
+
+    captured = {}
+
+    def fake_md(report_data, report_path, flow_status, project_name="EDA Flow"):
+        captured["project_name"] = project_name
+
+    def fake_html(report_data, report_path, flow_status, project_name="EDA Flow"):
+        pass
+
+    monkeypatch.setattr("src.log_analyzer.generate_markdown_report", fake_md)
+    monkeypatch.setattr("src.log_analyzer.generate_html_report", fake_html)
+
+    cfg = {"project_name": "Mini_EDA_Processor"}
+    analyze_logs(
+        str(logs_dir),
+        config=cfg,
+        output_path=str(tmp_path / "out.md"),
+        verbose=False,
+    )
+    assert captured["project_name"] == "Mini_EDA_Processor"

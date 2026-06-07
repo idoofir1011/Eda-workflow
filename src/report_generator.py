@@ -19,10 +19,13 @@ def generate_md_report(data, out, flow_status):
 
 
 def generate_markdown_report(
-    report_data: List[Dict], output_path: str, overall_status: str
+    report_data: List[Dict],
+    output_path: str,
+    overall_status: str,
+    project_name: str = "EDA Flow",
 ) -> None:
     with open(output_path, "w", encoding="utf-8") as r:
-        r.write("# EDA Flow Execution Summary Report\n\n")
+        r.write(f"# {project_name} — Execution Summary Report\n\n")
         r.write(f"**Overall Flow Status:** {overall_status}\n\n")
         r.write("## Stages Metrics Table\n\n")
         r.write("| Stage Name | Status | Gate Count | WNS (ns) | Details |\n")
@@ -35,7 +38,10 @@ def generate_markdown_report(
 
 
 def generate_html_report(
-    report_data: List[Dict], output_path: str, overall_status: str
+    report_data: List[Dict],
+    output_path: str,
+    overall_status: str,
+    project_name: str = "EDA Flow",
 ) -> None:
     rows = []
     for d in report_data:
@@ -60,7 +66,7 @@ def generate_html_report(
 </style>
 </head>
 <body>
-  <h1>EDA Flow Execution Summary</h1>
+  <h1>{html.escape(project_name)} — Execution Summary</h1>
   <p><strong>Overall Flow Status:</strong> {html.escape(overall_status)}</p>
   <table>
     <thead><tr><th>Stage Name</th><th>Status</th><th>Gate Count</th><th>WNS (ns)</th><th>Details</th></tr></thead>
