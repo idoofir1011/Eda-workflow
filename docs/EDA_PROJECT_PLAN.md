@@ -96,12 +96,12 @@ flowchart TD
 
 **Goal:** The config file actually controls the flow; the analyzer has one clean parse path.
 
-- [ ] `run_flow.sh` reads stages, `target_frequency_mhz`, and `error_chance_percentage` from `config/global_cfg.json` (use `jq` in bash, or rewrite the runner in Python).
-- [ ] Respect `critical` flag: halt on failure for critical stages; allow STA to fail and continue (already partially there).
-- [ ] Refactor `analyze_logs()` to call `parse_log()` for each file — remove duplicate regex block.
-- [ ] Write Markdown and HTML reports **once** after processing all logs.
-- [ ] Pass config into `analyze_logs()` and use it (paths, thresholds, project name in report header).
-- [ ] Fix `README.md` paths and commands.
+- [x] `run_flow.sh` reads stages, `target_frequency_mhz`, and `error_chance_percentage` from `config/global_cfg.json` (use `jq` in bash, or rewrite the runner in Python).
+- [x] Respect `critical` flag: halt on failure for critical stages; allow STA to fail and continue (already partially there).
+- [x] Refactor `analyze_logs()` to call `parse_log()` for each file — remove duplicate regex block.
+- [x] Write Markdown and HTML reports **once** after processing all logs.
+- [x] Pass config into `analyze_logs()` and use it (paths, thresholds, project name in report header).
+- [x] Fix `README.md` paths and commands.
 
 **Done when:** Changing `error_chance_percentage` in JSON visibly changes failure rate; `pytest -v` still passes; README matches the repo.
 
@@ -212,7 +212,7 @@ If you can't explain a change AI made, don't merge it until you can.
 
 | Phase | Status | Date completed |
 |-------|--------|----------------|
-| 1 — Make it honest | Not started | |
+| 1 — Make it honest | Complete | 2026-06-07 |
 | 2 — Run folders | Not started | |
 | 3 — Trust and tests | Not started | |
 | 4 — Optional golden | Not started | |
