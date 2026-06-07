@@ -13,16 +13,6 @@ echo "========================================"
 echo " Starting Mini EDA Flow Simulator "
 echo "========================================"
 
-mapfile -t STAGES < <(python3 - <<'PY'
-import json
-
-with open("config/global_cfg.json", encoding="utf-8") as f:
-    config = json.load(f)
-
-for stage in config["stages"]:
-    print(stage["name"])
-PY
-)
 FREQ=$(python3 - <<'PY'
 import json
 
@@ -33,24 +23,25 @@ print(config["target_frequency_mhz"])
 PY
 )
 
-for STAGE in "${STAGES[@]}"; do
+while IFS=$'\t' read -r STAGE CRITICAL ERROR_CHANCE; do
     echo -n "Running stage: [${STAGE^^}] ... "
     sleep 0.5
-    
+
     GATE_COUNT=$(( ( RANDOM % 100000 ) + 5000 ))
-    SLACK_INT=$(( ( RANDOM % 20 ) - 10 ))
-    
-    if [ $SLACK_INT -lt 0 ]; then
-        ABS_SLACK=$(( -SLACK_INT ))
-        SLACK="-0.$ABS_SLACK"
+    ROLL=$(( RANDOM % 100 ))
+
+    if [ "$ROLL" -lt "$ERROR_CHANCE" ]; then
+        SLACK_INT=$(( ( RANDOM % 10 ) + 1 ))
+        SLACK="-0.$SLACK_INT"
         STATUS_RESULT="ERROR: Timing violations detected! WNS is negative."
     else
+        SLACK_INT=$(( RANDOM % 20 ))
         SLACK="0.$SLACK_INT"
         STATUS_RESULT="SUCCESS"
     fi
 
     OUTPUT_LOG="$LOGS_DIR/$STAGE.log"
-    
+
     cat "$TEMPLATE_FILE" | \
         sed "s/{STAGE_NAME}/$STAGE/g" | \
         sed "s/{FREQ}/$FREQ/g" | \
@@ -60,7 +51,7 @@ for STAGE in "${STAGES[@]}"; do
 
     if [[ "$STATUS_RESULT" == *"ERROR"* ]]; then
         echo "FAILED ❌"
-        if [[ "$STAGE" == "compile" || "$STAGE" == "elaboration" || "$STAGE" == "synthesis" ]]; then
+        if [[ "$CRITICAL" == "True" ]]; then
             echo "----------------------------------------"
             echo "Critical stage [$STAGE] failed. Halting EDA Flow."
             echo "----------------------------------------"
@@ -69,7 +60,16 @@ for STAGE in "${STAGES[@]}"; do
     else
         echo "PASSED  "
     fi
-done
+done < <(python3 - <<'PY'
+import json
+
+with open("config/global_cfg.json", encoding="utf-8") as f:
+    config = json.load(f)
+
+for stage in config["stages"]:
+    print(f"{stage['name']}\t{stage['critical']}\t{stage['error_chance_percentage']}")
+PY
+)
 
 echo "========================================"
 echo "EDA Flow Finished. Logs are ready!"
