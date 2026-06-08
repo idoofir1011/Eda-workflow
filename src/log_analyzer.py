@@ -50,7 +50,16 @@ def parse_log(content):
     }
 
 
-def analyze_logs(logs_dir=None, config=None, output_path=None, verbose=False):
+def resolve_run_paths(run_dir=None, logs_dir=None, output_path=None):
+    """Map a run directory (or explicit paths) to logs and report locations."""
+    if run_dir:
+        run_dir = os.path.abspath(run_dir)
+        logs_dir = os.path.join(run_dir, "logs")
+        report_path = os.path.join(run_dir, "summary_report.md")
+        if output_path:
+            report_path = os.path.abspath(output_path)
+        return logs_dir, report_path
+
     if logs_dir:
         logs_dir = os.path.abspath(logs_dir)
     else:
@@ -64,6 +73,13 @@ def analyze_logs(logs_dir=None, config=None, output_path=None, verbose=False):
         report_path = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "..", "summary_report.md")
         )
+    return logs_dir, report_path
+
+
+def analyze_logs(
+    logs_dir=None, config=None, output_path=None, verbose=False, run_dir=None
+):
+    logs_dir, report_path = resolve_run_paths(run_dir, logs_dir, output_path)
 
     if not os.path.exists(logs_dir):
         print(f"Error: Logs directory not found at {logs_dir}")
@@ -107,10 +123,19 @@ def analyze_logs(logs_dir=None, config=None, output_path=None, verbose=False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Analyze EDA flow logs")
     parser.add_argument(
-        "--logs-dir", default="logs", help="Directory containing .log files"
+        "--run-dir",
+        default=None,
+        help="Run folder (reads logs/ and writes summary_report.md inside it)",
     )
     parser.add_argument(
-        "--output", default="summary_report.md", help="Output report path"
+        "--logs-dir",
+        default=None,
+        help="Directory containing .log files (ignored when --run-dir is set)",
+    )
+    parser.add_argument(
+        "--output",
+        default=None,
+        help="Output report path (default: summary_report.md in run dir or project root)",
     )
     parser.add_argument(
         "--config", default="config/global_cfg.json", help="JSON config path"
@@ -119,4 +144,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     cfg = load_config(args.config)
-    analyze_logs(args.logs_dir, cfg, args.output, args.verbose)
+    analyze_logs(
+        logs_dir=args.logs_dir,
+        config=cfg,
+        output_path=args.output,
+        verbose=args.verbose,
+        run_dir=args.run_dir,
+    )
