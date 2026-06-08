@@ -5,11 +5,21 @@ cd "$(dirname "$0")/.." || exit
 CONFIG_FILE="${CONFIG_FILE:-config/global_cfg.json}"
 export CONFIG_FILE
 TEMPLATE_FILE="templates/fake_synth.log"
-LOGS_DIR="${LOGS_DIR:-logs}"
+RUNS_ROOT="${RUNS_ROOT:-runs}"
 SLEEP_SEC="${FLOW_SLEEP:-0.5}"
 
-mkdir -p "$LOGS_DIR"
-rm -f "$LOGS_DIR"/*.log
+if [ -n "${LOGS_DIR:-}" ]; then
+    # Explicit LOGS_DIR (tests or manual override) — clear stale logs in place.
+    mkdir -p "$LOGS_DIR"
+    rm -f "$LOGS_DIR"/*.log
+else
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    RUN_DIR="${RUN_DIR:-$RUNS_ROOT/$TIMESTAMP}"
+    export RUN_DIR
+    LOGS_DIR="$RUN_DIR/logs"
+    mkdir -p "$LOGS_DIR"
+fi
+export LOGS_DIR
 
 ANY_FAILURE=0
 
@@ -83,6 +93,9 @@ if [ "$ANY_FAILURE" -eq 1 ]; then
     echo "EDA Flow Finished with failures. Logs are ready!"
 else
     echo "EDA Flow Finished. Logs are ready!"
+fi
+if [ -n "${RUN_DIR:-}" ]; then
+    echo "Run directory: $RUN_DIR"
 fi
 echo "========================================"
 
