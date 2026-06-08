@@ -22,6 +22,45 @@ fi
 export LOGS_DIR
 
 ANY_FAILURE=0
+STAGES_COMPLETED=0
+
+write_manifest() {
+    if [ -z "${RUN_DIR:-}" ]; then
+        return
+    fi
+    export MANIFEST_EXIT_CODE="${1:-0}"
+    export MANIFEST_ANY_FAILURE="$ANY_FAILURE"
+    export MANIFEST_STAGES_COMPLETED="$STAGES_COMPLETED"
+    python3 - <<'PY'
+import json
+import os
+from datetime import datetime, timezone
+
+run_dir = os.environ["RUN_DIR"]
+config_path = os.environ["CONFIG_FILE"]
+
+with open(config_path, encoding="utf-8") as f:
+    config_snapshot = json.load(f)
+
+manifest = {
+    "timestamp": os.path.basename(run_dir),
+    "started_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "overall_status": "failed" if int(os.environ["MANIFEST_ANY_FAILURE"]) else "passed",
+    "exit_code": int(os.environ["MANIFEST_EXIT_CODE"]),
+    "config_path": config_path,
+    "config_snapshot": config_snapshot,
+    "stage_count": len(config_snapshot.get("stages", [])),
+    "stages_completed": int(os.environ["MANIFEST_STAGES_COMPLETED"]),
+}
+
+manifest_path = os.path.join(run_dir, "manifest.json")
+with open(manifest_path, "w", encoding="utf-8") as f:
+    json.dump(manifest, f, indent=2)
+    f.write("\n")
+PY
+}
+
+trap 'write_manifest $?' EXIT
 
 echo "========================================"
 echo " Starting Mini EDA Flow Simulator "
@@ -63,6 +102,8 @@ while IFS=$'\t' read -r STAGE CRITICAL ERROR_CHANCE; do
         sed "s/{GATE_COUNT}/$GATE_COUNT/g" | \
         sed "s/{SLACK}/$SLACK/g" | \
         sed "s/{STATUS_RESULT}/$STATUS_RESULT/g" > "$OUTPUT_LOG"
+
+    STAGES_COMPLETED=$((STAGES_COMPLETED + 1))
 
     if [[ "$STATUS_RESULT" == *"ERROR"* ]]; then
         echo "FAILED ❌"
