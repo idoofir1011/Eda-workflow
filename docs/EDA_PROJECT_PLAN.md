@@ -64,8 +64,8 @@ flowchart LR
 
 | Gap | Where | What to fix |
 |-----|-------|-------------|
-| Logs always land in `logs/` | `scripts/run_flow.sh` | Phase 2: per-run folders under `runs/<timestamp>/`. |
-| Config does not set log/report paths | `src/log_analyzer.py` | Phase 2: `--run-dir` or config keys for output paths. |
+| ~~Logs always land in `logs/`~~ | `scripts/run_flow.sh` | Fixed in Phase 2: per-run folders under `runs/<timestamp>/`. |
+| ~~Config does not set log/report paths~~ | `src/log_analyzer.py` | Fixed in Phase 2: `--run-dir` and auto-detect latest run. |
 | No WNS threshold in config | `config/global_cfg.json` | Phase 3 (optional): `wns_min_ns` for pass/fail in reports. |
 | No golden regression | — | Phase 4: compare metrics vs saved baseline. |
 
@@ -120,10 +120,10 @@ flowchart TD
 
 **Goal:** Each flow run is saved separately — like real teams archive results.
 
-- [ ] Create `runs/<timestamp>/logs/` per execution instead of always overwriting `logs/`.
-- [ ] Write `runs/<timestamp>/manifest.json` with: timestamp, overall pass/fail, config path or snapshot, stage count.
-- [ ] Write reports inside the run folder: `runs/<timestamp>/summary_report.md` (and `.html`).
-- [ ] Update runner and analyzer to accept a `--run-dir` or auto-detect latest run.
+- [x] Create `runs/<timestamp>/logs/` per execution instead of always overwriting `logs/`.
+- [x] Write `runs/<timestamp>/manifest.json` with: timestamp, overall pass/fail, config path or snapshot, stage count.
+- [x] Write reports inside the run folder: `runs/<timestamp>/summary_report.md` (and `.html`).
+- [x] Update runner and analyzer to accept a `--run-dir` or auto-detect latest run.
 
 **Done when:** Two consecutive runs produce two separate folders; you can compare them side by side.
 
@@ -164,11 +164,11 @@ source .venv/bin/activate
 # Install dependencies (first time)
 pip install -r requirements.txt
 
-# Run the simulated flow
+# Run the simulated flow (creates runs/<timestamp>/)
 ./scripts/run_flow.sh
 
-# Analyze logs and generate reports
-python3 -m src.log_analyzer --logs-dir logs --output summary_report.md
+# Analyze the latest run (reports land inside that run folder)
+python3 -m src.log_analyzer --config config/global_cfg.json
 
 # Run tests
 pytest -v
@@ -222,7 +222,7 @@ If you can't explain a change AI made, don't merge it until you can.
 | Phase | Status | Date completed |
 |-------|--------|----------------|
 | 1 — Make it honest | Complete | 2026-06-07 |
-| 2 — Run folders | Not started | |
+| 2 — Run folders | Complete | 2026-06-08 |
 | 3 — Trust and tests | Not started | |
 | 4 — Optional golden | Not started | |
 

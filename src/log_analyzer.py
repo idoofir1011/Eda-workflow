@@ -50,6 +50,26 @@ def parse_log(content):
     }
 
 
+def find_latest_run_dir(runs_root=None):
+    """Return the newest runs/<timestamp>/ folder that contains a logs/ subdir."""
+    if runs_root is None:
+        runs_root = os.path.join(os.path.dirname(__file__), "..", "runs")
+    runs_root = os.path.abspath(runs_root)
+    if not os.path.isdir(runs_root):
+        return None
+
+    candidates = []
+    for name in os.listdir(runs_root):
+        run_path = os.path.join(runs_root, name)
+        if os.path.isdir(run_path) and os.path.isdir(os.path.join(run_path, "logs")):
+            candidates.append(run_path)
+
+    if not candidates:
+        return None
+
+    return max(candidates, key=lambda path: os.path.basename(path))
+
+
 def resolve_run_paths(run_dir=None, logs_dir=None, output_path=None):
     """Map a run directory (or explicit paths) to logs and report locations."""
     if run_dir:
@@ -143,11 +163,17 @@ if __name__ == "__main__":
     parser.add_argument("--verbose", action="store_true", help="Verbose output")
     args = parser.parse_args()
 
+    run_dir = args.run_dir
+    if run_dir is None and args.logs_dir is None:
+        run_dir = find_latest_run_dir()
+        if run_dir and args.verbose:
+            print(f"[DEBUG] Using latest run directory: {run_dir}")
+
     cfg = load_config(args.config)
     analyze_logs(
         logs_dir=args.logs_dir,
         config=cfg,
         output_path=args.output,
         verbose=args.verbose,
-        run_dir=args.run_dir,
+        run_dir=run_dir,
     )

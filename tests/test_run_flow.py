@@ -87,3 +87,40 @@ def test_run_flow_non_critical_failure_exits_nonzero(tmp_path):
     assert "EDA Flow Finished with failures" in result.stdout
     assert (logs_dir / "compile.log").exists()
     assert (logs_dir / "sta.log").exists()
+
+
+def test_run_flow_creates_timestamped_run_directory(tmp_path):
+    runs_root = tmp_path / "runs"
+    config = _base_config(
+        [
+            {"name": "compile", "critical": True, "error_chance_percentage": 0},
+        ]
+    )
+    cfg_path = tmp_path / "flow_cfg.json"
+    cfg_path.write_text(json.dumps(config), encoding="utf-8")
+
+    env = os.environ.copy()
+    env["CONFIG_FILE"] = str(cfg_path)
+    env["RUNS_ROOT"] = str(runs_root)
+    env["FLOW_SLEEP"] = "0"
+
+    result = subprocess.run(
+        ["bash", str(RUN_FLOW)],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    run_dirs = sorted(p for p in runs_root.iterdir() if p.is_dir())
+    assert len(run_dirs) == 1
+    run_dir = run_dirs[0]
+    assert (run_dir / "logs" / "compile.log").exists()
+    assert (run_dir / "manifest.json").exists()
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["overall_status"] == "passed"
+    assert manifest["stage_count"] == 1
+    assert manifest["stages_completed"] == 1
+    assert "Run directory:" in result.stdout

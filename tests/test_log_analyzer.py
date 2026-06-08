@@ -1,4 +1,4 @@
-from src.log_analyzer import parse_log, load_config, analyze_logs
+from src.log_analyzer import parse_log, load_config, analyze_logs, find_latest_run_dir
 import json
 import pytest
 import os
@@ -149,3 +149,44 @@ def test_analyze_logs_uses_project_name_from_config(tmp_path, monkeypatch):
         verbose=False,
     )
     assert captured["project_name"] == "Mini_EDA_Processor"
+
+
+def test_find_latest_run_dir_picks_newest_timestamp(tmp_path):
+    runs_root = tmp_path / "runs"
+    older = runs_root / "20260101_120000"
+    newer = runs_root / "20260102_120000"
+    (older / "logs").mkdir(parents=True)
+    (newer / "logs").mkdir(parents=True)
+
+    latest = find_latest_run_dir(str(runs_root))
+    assert latest == str(newer)
+
+
+def test_find_latest_run_dir_returns_none_when_missing(tmp_path):
+    assert find_latest_run_dir(str(tmp_path / "runs")) is None
+
+
+def test_analyze_logs_with_run_dir_writes_reports_inside_run(tmp_path, monkeypatch):
+    run_dir = tmp_path / "runs" / "20260101_120000"
+    logs_dir = run_dir / "logs"
+    logs_dir.mkdir(parents=True)
+    (logs_dir / "synthesis.log").write_text(
+        "EDA TOOL RUN LOG -- STAGE: synthesis\n"
+        "[DATA] Total Gate Count = 100\n"
+        "[DATA] Worst Negative Slack (WNS) = 0.10 ns\n"
+        "[RESULT] SUCCESS\n"
+    )
+
+    captured = {}
+
+    def fake_md(report_data, report_path, flow_status, project_name="EDA Flow"):
+        captured["report_path"] = report_path
+
+    def fake_html(report_data, report_path, flow_status, project_name="EDA Flow"):
+        pass
+
+    monkeypatch.setattr("src.log_analyzer.generate_markdown_report", fake_md)
+    monkeypatch.setattr("src.log_analyzer.generate_html_report", fake_html)
+
+    analyze_logs(run_dir=str(run_dir), config=None, verbose=False)
+    assert captured["report_path"] == str(run_dir / "summary_report.md")
