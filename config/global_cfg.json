@@ -2,6 +2,11 @@
   "project_name": "Mini_EDA_Processor",
   "target_frequency_mhz": 800,
   "wns_min_ns": 0.0,
+  "golden": {
+    "path": "golden/synthesis.json",
+    "wns_regression_max_ns": 0.05,
+    "gates_regression_max": 1000
+  },
   "stages": [
     {
       "name": "compile",

@@ -12,13 +12,26 @@ def generate_markdown_report(
         r.write(f"# {project_name} — Execution Summary Report\n\n")
         r.write(f"**Overall Flow Status:** {overall_status}\n\n")
         r.write("## Stages Metrics Table\n\n")
-        r.write("| Stage Name | Status | Gate Count | WNS (ns) | Details |\n")
-        r.write("|------------|--------|------------|----------|---------|\n")
+        r.write(
+            "| Stage Name | Status | Gate Count | WNS (ns) | vs Golden | Details |\n"
+        )
+        r.write(
+            "|------------|--------|------------|----------|-----------|---------|\n"
+        )
         for d in report_data:
             details = d.get("details", "").replace("|", "\\|")
+            vs_golden = d.get("vs_golden", "—").replace("|", "\\|")
             r.write(
-                f"| {d.get('stage','')} | {d.get('status','')} | {d.get('gates','')} | {d.get('slack','')} | {details} |\n"
+                f"| {d.get('stage','')} | {d.get('status','')} | {d.get('gates','')} | {d.get('slack','')} | {vs_golden} | {details} |\n"
             )
+
+        synthesis = next(
+            (d for d in report_data if d.get("stage", "").upper() == "SYNTHESIS"),
+            None,
+        )
+        if synthesis and synthesis.get("vs_golden") not in (None, "—"):
+            r.write("\n## Golden Regression (Synthesis)\n\n")
+            r.write(f"Baseline comparison: {synthesis['vs_golden']}\n")
 
 
 def generate_html_report(
@@ -34,8 +47,9 @@ def generate_html_report(
         gates = html.escape(str(d.get("gates", "")))
         slack = html.escape(str(d.get("slack", "")))
         details = html.escape(d.get("details", ""))
+        vs_golden = html.escape(d.get("vs_golden", "—"))
         rows.append(
-            f"<tr><td>{stage}</td><td>{status}</td><td>{gates}</td><td>{slack}</td><td>{details}</td></tr>"
+            f"<tr><td>{stage}</td><td>{status}</td><td>{gates}</td><td>{slack}</td><td>{vs_golden}</td><td>{details}</td></tr>"
         )
 
     html_doc = f"""<!doctype html>
@@ -53,7 +67,7 @@ def generate_html_report(
   <h1>{html.escape(project_name)} — Execution Summary</h1>
   <p><strong>Overall Flow Status:</strong> {html.escape(overall_status)}</p>
   <table>
-    <thead><tr><th>Stage Name</th><th>Status</th><th>Gate Count</th><th>WNS (ns)</th><th>Details</th></tr></thead>
+    <thead><tr><th>Stage Name</th><th>Status</th><th>Gate Count</th><th>WNS (ns)</th><th>vs Golden</th><th>Details</th></tr></thead>
     <tbody>
       {''.join(rows)}
     </tbody>

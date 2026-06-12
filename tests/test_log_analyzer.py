@@ -4,6 +4,11 @@ from src.log_analyzer import (
     analyze_logs,
     find_latest_run_dir,
     apply_wns_threshold,
+    compare_to_golden,
+    check_golden_regression,
+    annotate_golden_comparison,
+    save_golden,
+    load_golden,
 )
 import json
 import pytest
@@ -313,3 +318,181 @@ def test_analyze_logs_missing_logs_dir_exits_with_code_2(tmp_path):
             verbose=False,
         )
     assert exc.value.code == 2
+
+
+def test_compare_to_golden_better_worse_same():
+    golden = {"gate_count": 10000, "wns_ns": 0.10}
+    better = {
+        "stage": "SYNTHESIS",
+        "gates": "9000",
+        "slack": "0.20",
+    }
+    worse = {
+        "stage": "SYNTHESIS",
+        "gates": "12000",
+        "slack": "0.05",
+    }
+    same = {
+        "stage": "SYNTHESIS",
+        "gates": "10000",
+        "slack": "0.10",
+    }
+
+    assert "WNS: better" in compare_to_golden(better, golden)
+    assert "Gates: better" in compare_to_golden(better, golden)
+    assert "WNS: worse" in compare_to_golden(worse, golden)
+    assert "Gates: worse" in compare_to_golden(worse, golden)
+    assert compare_to_golden(same, golden) == "WNS: same, Gates: same"
+
+
+def test_compare_to_golden_skips_non_synthesis():
+    golden = {"gate_count": 10000, "wns_ns": 0.10}
+    parsed = {"stage": "STA", "gates": "10000", "slack": "0.10"}
+    assert compare_to_golden(parsed, golden) is None
+
+
+def test_check_golden_regression_wns_and_gates(tmp_path):
+    golden = {"gate_count": 10000, "wns_ns": 0.20}
+    config = {
+        "golden": {
+            "path": str(tmp_path / "golden.json"),
+            "wns_regression_max_ns": 0.05,
+            "gates_regression_max": 500,
+        }
+    }
+    wns_regressed = {
+        "stage": "SYNTHESIS",
+        "gates": "10000",
+        "slack": "0.10",
+    }
+    gates_regressed = {
+        "stage": "SYNTHESIS",
+        "gates": "11000",
+        "slack": "0.20",
+    }
+    within_limits = {
+        "stage": "SYNTHESIS",
+        "gates": "10400",
+        "slack": "0.18",
+    }
+
+    assert check_golden_regression(wns_regressed, golden, config) is True
+    assert check_golden_regression(gates_regressed, golden, config) is True
+    assert check_golden_regression(within_limits, golden, config) is False
+
+
+def test_annotate_golden_comparison_adds_vs_golden_column(tmp_path):
+    golden_path = tmp_path / "golden" / "synthesis.json"
+    golden_path.parent.mkdir(parents=True)
+    save_golden({"stage": "synthesis", "gate_count": 1000, "wns_ns": 0.10}, str(golden_path))
+
+    report_data = [
+        {
+            "stage": "COMPILE",
+            "gates": "500",
+            "slack": "0.50",
+            "status": "🟢 PASS",
+            "details": "SUCCESS",
+        },
+        {
+            "stage": "SYNTHESIS",
+            "gates": "900",
+            "slack": "0.15",
+            "status": "🟢 PASS",
+            "details": "SUCCESS",
+        },
+    ]
+    config = {"golden": {"path": str(golden_path)}}
+    assert annotate_golden_comparison(report_data, config) is False
+    assert report_data[0]["vs_golden"] == "—"
+    assert "WNS: better" in report_data[1]["vs_golden"]
+    assert "Gates: better" in report_data[1]["vs_golden"]
+
+
+def test_analyze_logs_golden_regression_fails_flow(tmp_path, monkeypatch):
+    logs_dir = tmp_path / "logs"
+    logs_dir.mkdir()
+    golden_path = tmp_path / "golden" / "synthesis.json"
+    golden_path.parent.mkdir(parents=True)
+    save_golden({"stage": "synthesis", "gate_count": 1000, "wns_ns": 0.20}, str(golden_path))
+    (logs_dir / "synthesis.log").write_text(
+        "EDA TOOL RUN LOG -- STAGE: synthesis\n"
+        "[DATA] Total Gate Count = 1000\n"
+        "[DATA] Worst Negative Slack (WNS) = 0.10 ns\n"
+        "[RESULT] SUCCESS\n"
+    )
+
+    captured = {}
+
+    def fake_md(report_data, report_path, flow_status, project_name="EDA Flow"):
+        captured["report_data"] = list(report_data)
+        captured["flow_status"] = flow_status
+
+    def fake_html(report_data, report_path, flow_status, project_name="EDA Flow"):
+        pass
+
+    monkeypatch.setattr("src.log_analyzer.generate_markdown_report", fake_md)
+    monkeypatch.setattr("src.log_analyzer.generate_html_report", fake_html)
+
+    config = {
+        "golden": {
+            "path": str(golden_path),
+            "wns_regression_max_ns": 0.05,
+        }
+    }
+    with pytest.raises(SystemExit) as exc:
+        analyze_logs(
+            str(logs_dir),
+            config=config,
+            output_path=str(tmp_path / "out.md"),
+            verbose=False,
+        )
+    assert exc.value.code == 1
+    assert captured["flow_status"] == "FAILED"
+    assert "WNS: worse" in captured["report_data"][0]["vs_golden"]
+
+
+def test_update_golden_writes_baseline(tmp_path):
+    logs_dir = tmp_path / "logs"
+    logs_dir.mkdir()
+    golden_path = tmp_path / "golden" / "synthesis.json"
+    (logs_dir / "synthesis.log").write_text(
+        "EDA TOOL RUN LOG -- STAGE: synthesis\n"
+        "[DATA] Total Gate Count = 5432\n"
+        "[DATA] Worst Negative Slack (WNS) = 0.33 ns\n"
+        "[RESULT] SUCCESS\n"
+    )
+
+    config = {"golden": {"path": str(golden_path)}}
+    analyze_logs(
+        str(logs_dir),
+        config=config,
+        output_path=str(tmp_path / "out.md"),
+        verbose=False,
+        update_golden=True,
+    )
+
+    saved = load_golden(str(golden_path))
+    assert saved["gate_count"] == 5432
+    assert saved["wns_ns"] == 0.33
+
+
+def test_report_generator_includes_vs_golden_column(tmp_path):
+    from src.report_generator import generate_markdown_report
+
+    report_data = [
+        {
+            "stage": "SYNTHESIS",
+            "status": "🟢 PASS",
+            "gates": "1000",
+            "slack": "0.10",
+            "vs_golden": "WNS: same, Gates: better (-100)",
+            "details": "SUCCESS",
+        }
+    ]
+    out = tmp_path / "report.md"
+    generate_markdown_report(report_data, str(out), "PASSED", "Test Project")
+    content = out.read_text()
+    assert "vs Golden" in content
+    assert "WNS: same, Gates: better (-100)" in content
+    assert "## Golden Regression (Synthesis)" in content

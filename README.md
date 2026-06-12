@@ -6,7 +6,8 @@ A small personal project that simulates VLSI-like workflows. It demonstrates a c
 
 | Path | Purpose |
 |------|---------|
-| `config/global_cfg.json` | Flow config: stages, MHz, critical flags, error rates |
+| `config/global_cfg.json` | Flow config: stages, MHz, critical flags, error rates, golden thresholds |
+| `golden/synthesis.json` | Baseline synthesis metrics (gate count, WNS) for regression checks |
 | `scripts/run_flow.sh` | Runs the simulated flow and archives each run |
 | `runs/<timestamp>/` | One folder per flow run (logs, manifest, reports) |
 | `runs/<timestamp>/logs/` | Generated `.log` files (one per stage) |
@@ -34,9 +35,14 @@ python3 -m src.log_analyzer --config config/global_cfg.json
 
 # Or target a specific run explicitly
 python3 -m src.log_analyzer --run-dir runs/20260608_111154 --config config/global_cfg.json
+
+# Save the latest run's synthesis metrics as the golden baseline
+python3 -m src.log_analyzer --config config/global_cfg.json --update-golden
 ```
 
-Edit `config/global_cfg.json` to change stages, target frequency, per-stage error rates, WNS pass threshold (`wns_min_ns`), or which stages halt the flow on failure.
+Edit `config/global_cfg.json` to change stages, target frequency, per-stage error rates, WNS pass threshold (`wns_min_ns`), golden regression limits (`golden.wns_regression_max_ns`, `golden.gates_regression_max`), or which stages halt the flow on failure.
+
+Reports include a **vs Golden** column for synthesis metrics (better / worse / same vs `golden/synthesis.json`). The analyzer exits with code `1` when regression exceeds the configured thresholds.
 
 ## Exit codes
 

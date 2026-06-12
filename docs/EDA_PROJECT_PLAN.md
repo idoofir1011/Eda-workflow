@@ -67,7 +67,7 @@ flowchart LR
 | ~~Logs always land in `logs/`~~ | `scripts/run_flow.sh` | Fixed in Phase 2: per-run folders under `runs/<timestamp>/`. |
 | ~~Config does not set log/report paths~~ | `src/log_analyzer.py` | Fixed in Phase 2: `--run-dir` and auto-detect latest run. |
 | ~~No WNS threshold in config~~ | `config/global_cfg.json` | Fixed in Phase 3: `wns_min_ns` marks timing fail in reports. |
-| No golden regression | — | Phase 4: compare metrics vs saved baseline. |
+| ~~No golden regression~~ | `golden/synthesis.json` | Fixed in Phase 4: compare metrics vs saved baseline. |
 
 **Recently fixed:** config-driven runner (stages, MHz, error rates, critical halt), single `parse_log()` path, reports written once, README paths, stale log cleanup at run start, runner/analyzer exit codes, shell integration tests.
 
@@ -145,9 +145,9 @@ flowchart TD
 
 **Goal:** Simple regression — did this run get worse than last time?
 
-- [ ] Save baseline metrics to `golden/synthesis.json` (WNS, gate count).
-- [ ] Report shows delta vs golden: better / worse / same.
-- [ ] Optional: fail with non-zero exit if regression exceeds a config threshold.
+- [x] Save baseline metrics to `golden/synthesis.json` (WNS, gate count).
+- [x] Report shows delta vs golden: better / worse / same.
+- [x] Optional: fail with non-zero exit if regression exceeds a config threshold.
 
 **Done when:** Report has a "vs golden" column or section for at least synthesis metrics.
 
@@ -224,6 +224,6 @@ If you can't explain a change AI made, don't merge it until you can.
 | 1 — Make it honest | Complete | 2026-06-07 |
 | 2 — Run folders | Complete | 2026-06-08 |
 | 3 — Trust and tests | Complete | 2026-06-12 |
-| 4 — Optional golden | Not started | |
+| 4 — Optional golden | Complete | 2026-06-12 |
 
 Update this table as you finish each phase.

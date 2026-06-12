@@ -70,6 +70,160 @@ def find_latest_run_dir(runs_root=None):
     return max(candidates, key=lambda path: os.path.basename(path))
 
 
+def project_root():
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+
+def resolve_golden_path(config):
+    golden_cfg = (config or {}).get("golden", {})
+    path = golden_cfg.get("path", "golden/synthesis.json")
+    if not os.path.isabs(path):
+        path = os.path.join(project_root(), path)
+    return path
+
+
+def load_golden(path):
+    if not os.path.isfile(path):
+        return None
+    with open(path, "r") as f:
+        return json.load(f)
+
+
+def save_golden(metrics, path):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(metrics, f, indent=2)
+        f.write("\n")
+
+
+def _metric_verdict(current, golden, higher_is_better):
+    """Return (verdict, delta) where verdict is better, worse, or same."""
+    delta = current - golden
+    if abs(delta) < 1e-9:
+        return "same", 0.0
+    if higher_is_better:
+        verdict = "better" if delta > 0 else "worse"
+    else:
+        verdict = "better" if delta < 0 else "worse"
+    return verdict, delta
+
+
+def _parse_numeric(value):
+    if value in (None, "N/A"):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def compare_to_golden(parsed_log, golden):
+    """Compare synthesis metrics to golden baseline. Returns a summary string or None."""
+    if golden is None or parsed_log.get("stage", "").upper() != "SYNTHESIS":
+        return None
+
+    golden_gates = _parse_numeric(golden.get("gate_count", golden.get("gates")))
+    current_gates = _parse_numeric(parsed_log.get("gates"))
+    golden_wns = _parse_numeric(golden.get("wns_ns", golden.get("slack")))
+    current_wns = _parse_numeric(parsed_log.get("slack"))
+
+    parts = []
+    if current_wns is not None and golden_wns is not None:
+        verdict, delta = _metric_verdict(current_wns, golden_wns, higher_is_better=True)
+        if verdict == "same":
+            parts.append("WNS: same")
+        else:
+            sign = "+" if delta > 0 else ""
+            parts.append(f"WNS: {verdict} ({sign}{delta:.3f} ns)")
+    if current_gates is not None and golden_gates is not None:
+        verdict, delta = _metric_verdict(
+            current_gates, golden_gates, higher_is_better=False
+        )
+        if verdict == "same":
+            parts.append("Gates: same")
+        else:
+            sign = "+" if delta > 0 else ""
+            parts.append(f"Gates: {verdict} ({sign}{int(delta)})")
+
+    return ", ".join(parts) if parts else None
+
+
+def check_golden_regression(parsed_log, golden, config):
+    """Return True when synthesis metrics regress beyond configured limits."""
+    if golden is None or parsed_log.get("stage", "").upper() != "SYNTHESIS":
+        return False
+
+    golden_cfg = (config or {}).get("golden", {})
+    wns_limit = golden_cfg.get("wns_regression_max_ns")
+    gates_limit = golden_cfg.get("gates_regression_max")
+
+    golden_gates = _parse_numeric(golden.get("gate_count", golden.get("gates")))
+    current_gates = _parse_numeric(parsed_log.get("gates"))
+    golden_wns = _parse_numeric(golden.get("wns_ns", golden.get("slack")))
+    current_wns = _parse_numeric(parsed_log.get("slack"))
+
+    if wns_limit is not None and current_wns is not None and golden_wns is not None:
+        try:
+            if golden_wns - current_wns > float(wns_limit):
+                return True
+        except (TypeError, ValueError):
+            pass
+
+    if (
+        gates_limit is not None
+        and current_gates is not None
+        and golden_gates is not None
+    ):
+        try:
+            if current_gates - golden_gates > float(gates_limit):
+                return True
+        except (TypeError, ValueError):
+            pass
+
+    return False
+
+
+def annotate_golden_comparison(report_data, config):
+    """Add vs_golden field to synthesis rows and return whether regression exceeded limits."""
+    golden_path = resolve_golden_path(config)
+    golden = load_golden(golden_path)
+    golden_regression = False
+
+    for entry in report_data:
+        if entry.get("stage", "").upper() == "SYNTHESIS":
+            vs_golden = compare_to_golden(entry, golden)
+            entry["vs_golden"] = vs_golden if vs_golden else "N/A (no golden)"
+            if check_golden_regression(entry, golden, config):
+                golden_regression = True
+        else:
+            entry["vs_golden"] = "—"
+
+    return golden_regression
+
+
+def update_golden_from_report(report_data, config):
+    """Write synthesis metrics from the latest run into the golden baseline file."""
+    golden_path = resolve_golden_path(config)
+    for entry in report_data:
+        if entry.get("stage", "").upper() != "SYNTHESIS":
+            continue
+        gates = _parse_numeric(entry.get("gates"))
+        wns = _parse_numeric(entry.get("slack"))
+        if gates is None or wns is None:
+            print("Error: synthesis log missing gate count or WNS; golden not updated.")
+            sys.exit(2)
+        metrics = {
+            "stage": "synthesis",
+            "gate_count": int(gates),
+            "wns_ns": wns,
+        }
+        save_golden(metrics, golden_path)
+        print(f"Golden baseline updated at: {golden_path}")
+        return
+    print("Error: no synthesis stage found in logs; golden not updated.")
+    sys.exit(2)
+
+
 def apply_wns_threshold(parsed_log, wns_min_ns):
     """Mark a stage failed when parsed WNS is below the configured minimum."""
     if wns_min_ns is None:
@@ -126,7 +280,12 @@ def resolve_run_paths(run_dir=None, logs_dir=None, output_path=None):
 
 
 def analyze_logs(
-    logs_dir=None, config=None, output_path=None, verbose=False, run_dir=None
+    logs_dir=None,
+    config=None,
+    output_path=None,
+    verbose=False,
+    run_dir=None,
+    update_golden=False,
 ):
     logs_dir, report_path = resolve_run_paths(run_dir, logs_dir, output_path)
 
@@ -156,6 +315,14 @@ def analyze_logs(
         report_data.append(parsed_log)
         if "FAIL" in parsed_log["status"]:
             flow_status = "FAILED"
+
+    if update_golden:
+        update_golden_from_report(report_data, config)
+        return
+
+    golden_regression = annotate_golden_comparison(report_data, config)
+    if golden_regression:
+        flow_status = "FAILED"
 
     generate_markdown_report(report_data, report_path, flow_status, project_name)
     if report_path.lower().endswith(".md"):
@@ -191,6 +358,11 @@ if __name__ == "__main__":
         "--config", default="config/global_cfg.json", help="JSON config path"
     )
     parser.add_argument("--verbose", action="store_true", help="Verbose output")
+    parser.add_argument(
+        "--update-golden",
+        action="store_true",
+        help="Save synthesis metrics from this run as the golden baseline",
+    )
     args = parser.parse_args()
 
     run_dir = args.run_dir
@@ -206,4 +378,5 @@ if __name__ == "__main__":
         output_path=args.output,
         verbose=args.verbose,
         run_dir=run_dir,
+        update_golden=args.update_golden,
     )
