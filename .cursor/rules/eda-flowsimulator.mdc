@@ -70,12 +70,14 @@ global_cfg.json → run_flow.sh → logs/*.log → parse_log() → report (MD + 
 
 ## Do not
 
-- Create git commits unless the user explicitly requests.
+- Create git commits unless the user explicitly requests — leave changes uncommitted so the user can review green/red diffs in Source Control first (see `review-before-commit.mdc`).
 - Use `./venv` — correct path is `source .venv/bin/activate`.
 - Add `Co-authored-by`, `Signed-off-by`, or any trailer attributing Cursor, AI, or an agent to commits.
 - Mention in commit messages, PR descriptions, or docs that an agent or AI wrote the code.
 
 ## Git commits
+
+Finish implementation and tests first; wait for the user to review diffs, then commit only on request.
 
 When the user asks for a commit:
 

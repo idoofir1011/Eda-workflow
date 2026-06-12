@@ -1,0 +1,27 @@
+---
+description: Show finished agent diffs for review before any git commit
+alwaysApply: true
+---
+
+# Review diffs before commit
+
+The user reviews agent work in Cursor's green/red diff UI **before** anything is committed.
+
+## Workflow
+
+1. Make all code changes for the task.
+2. Run tests if relevant (`pytest -v`, etc.).
+3. **Stop — do not commit.** Leave changes unstaged or staged but uncommitted.
+4. End with a short summary and a **Changed files** list (one path per line) so the user can click them in chat or open Source Control (`Ctrl+Shift+G`) to see diffs.
+5. Commit only when the user explicitly asks (e.g. "commit", "commit this", "make a commit").
+
+## Do not
+
+- Auto-commit after finishing a task, phase, or sub-task.
+- Batch multiple logical changes into commits without the user reviewing diffs first.
+- Tell the user to use `git show` or commit history as the primary way to review — unstaged working-tree diffs in Source Control are the review surface.
+
+## When the user asks to commit
+
+- Follow the git safety protocol from user rules.
+- One commit per logical unit if they request multiple commits; otherwise one commit for the reviewed batch.
