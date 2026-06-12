@@ -24,21 +24,26 @@ Small, config-driven flow simulator that fakes compile → elaboration → synth
 - Key paths:
   - Runner: `scripts/run_flow.sh`
   - Config: `config/global_cfg.json`
+  - Golden baseline: `golden/synthesis.json`
   - Parser: `src/log_analyzer.py`
   - Reports: `src/report_generator.py`
-  - Tests: `tests/test_log_analyzer.py`
+  - Tests: `tests/test_log_analyzer.py`, `tests/test_run_flow.py`
   - Plan: `docs/EDA_PROJECT_PLAN.md`
 
 ## Architecture
 
 ```
-global_cfg.json → run_flow.sh → logs/*.log → parse_log() → report (MD + HTML)
+global_cfg.json → run_flow.sh → runs/<timestamp>/logs/*.log → parse_log() → report (MD + HTML)
 ```
 
+- Runner reads stages, MHz, error rates, and `critical` flags from `config/global_cfg.json`.
+- Each run archives to `runs/<timestamp>/` with `manifest.json` and per-run reports.
 - Runner produces one `.log` per stage from `templates/fake_synth.log` via `sed`.
 - `parse_log(content)` is the single source of truth for regex extraction.
-- `analyze_logs()` should call `parse_log()` per file — do not duplicate regex logic.
+- `analyze_logs()` calls `parse_log()` per file — do not duplicate regex logic.
 - Reports are written once after all logs are processed.
+- Analyzer auto-detects the latest run or accepts `--run-dir`; supports `--update-golden`.
+- `wns_min_ns` and `golden` thresholds in config can fail the flow on timing or regression.
 
 ## Coding conventions
 
@@ -48,13 +53,23 @@ global_cfg.json → run_flow.sh → logs/*.log → parse_log() → report (MD + 
 - Comments only for non-obvious logic.
 - Do not add heavy dependencies; `requirements.txt` stays minimal (pytest).
 
-## Known improvements (prefer these when relevant)
+## Project status (Phases 1–4 complete)
 
-1. Wire `config/global_cfg.json` into `run_flow.sh` (stages, MHz, `error_chance_percentage`, `critical`).
-2. Refactor `analyze_logs()` to use `parse_log()` only; write reports once after the loop.
-3. Use config inside `analyze_logs()` (paths, thresholds, project name).
-4. Run directories: `runs/<timestamp>/logs/` + `manifest.json`.
-5. Keep `README.md` in sync with real paths and commands.
+All items in `docs/EDA_PROJECT_PLAN.md` are done. Do not re-implement completed work unless fixing a bug.
+
+**Implemented:**
+- Config-driven runner with critical-stage halt
+- Per-run folders under `runs/<timestamp>/` with `manifest.json`
+- WNS threshold (`wns_min_ns`) in reports and pass/fail
+- Golden baseline comparison for synthesis (`golden/synthesis.json`, `--update-golden`)
+- pytest coverage for parser, analyzer, runner, and golden regression
+
+**Optional extensions (only if explicitly requested):**
+- GitHub Actions CI for `pytest`
+- Golden comparison for STA or other stages
+- Real EDA tool integration, schedulers, or web dashboards (out of scope by default)
+
+When changing behavior, keep `README.md` and `docs/EDA_PROJECT_PLAN.md` in sync.
 
 ## Testing
 
@@ -90,5 +105,5 @@ When the user asks for a commit:
 When helping the intern:
 
 - Explain terms in plain English (WNS, critical stage, golden, regression).
-- Propose the smallest change that satisfies the current phase in `docs/EDA_PROJECT_PLAN.md`.
+- Propose the smallest change that satisfies the user's request without scope creep.
 - After changes, remind to run `pytest -v` and `./scripts/run_flow.sh`.
