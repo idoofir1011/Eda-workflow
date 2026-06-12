@@ -1,4 +1,10 @@
-from src.log_analyzer import parse_log, load_config, analyze_logs, find_latest_run_dir
+from src.log_analyzer import (
+    parse_log,
+    load_config,
+    analyze_logs,
+    find_latest_run_dir,
+    apply_wns_threshold,
+)
 import json
 import pytest
 import os
@@ -190,3 +196,120 @@ def test_analyze_logs_with_run_dir_writes_reports_inside_run(tmp_path, monkeypat
 
     analyze_logs(run_dir=str(run_dir), config=None, verbose=False)
     assert captured["report_path"] == str(run_dir / "summary_report.md")
+
+
+def test_apply_wns_threshold_fails_when_below_minimum():
+    parsed = {
+        "stage": "SYNTHESIS",
+        "gates": "1000",
+        "slack": "-0.10",
+        "details": "SUCCESS",
+        "status": "🟢 PASS",
+    }
+    result = apply_wns_threshold(parsed, 0.0)
+    assert result["status"].startswith("🔴")
+    assert "below minimum" in result["details"]
+
+
+def test_apply_wns_threshold_passes_when_at_or_above_minimum():
+    parsed = {
+        "stage": "SYNTHESIS",
+        "gates": "1000",
+        "slack": "0.05",
+        "details": "SUCCESS",
+        "status": "🟢 PASS",
+    }
+    assert apply_wns_threshold(parsed, 0.05) == parsed
+    assert apply_wns_threshold(parsed, 0.0)["status"].startswith("🟢")
+
+
+def test_apply_wns_threshold_skipped_when_not_configured():
+    parsed = {
+        "stage": "SYNTHESIS",
+        "gates": "1000",
+        "slack": "-0.50",
+        "details": "SUCCESS",
+        "status": "🟢 PASS",
+    }
+    assert apply_wns_threshold(parsed, None) == parsed
+
+
+def test_apply_wns_threshold_coerces_string_threshold():
+    parsed = {
+        "stage": "SYNTHESIS",
+        "gates": "1000",
+        "slack": "-0.10",
+        "details": "SUCCESS",
+        "status": "🟢 PASS",
+    }
+    result = apply_wns_threshold(parsed, "0.0")
+    assert result["status"].startswith("🔴")
+
+
+def test_apply_wns_threshold_skipped_when_threshold_invalid():
+    parsed = {
+        "stage": "SYNTHESIS",
+        "gates": "1000",
+        "slack": "-0.10",
+        "details": "SUCCESS",
+        "status": "🟢 PASS",
+    }
+    assert apply_wns_threshold(parsed, "not-a-number") == parsed
+
+
+def test_apply_wns_threshold_preserves_existing_error_details():
+    parsed = {
+        "stage": "STA",
+        "gates": "1000",
+        "slack": "-0.90",
+        "details": "ERROR: Timing violations detected! WNS is negative.",
+        "status": "🔴 FAIL",
+    }
+    result = apply_wns_threshold(parsed, 0.0)
+    assert result["status"].startswith("🔴")
+    assert "ERROR" in result["details"]
+
+
+def test_analyze_logs_wns_threshold_marks_flow_failed(tmp_path, monkeypatch):
+    logs_dir = tmp_path / "logs"
+    logs_dir.mkdir()
+    (logs_dir / "synthesis.log").write_text(
+        "EDA TOOL RUN LOG -- STAGE: synthesis\n"
+        "[DATA] Total Gate Count = 100\n"
+        "[DATA] Worst Negative Slack (WNS) = -0.05 ns\n"
+        "[RESULT] SUCCESS\n"
+    )
+
+    captured = {}
+
+    def fake_md(report_data, report_path, flow_status, project_name="EDA Flow"):
+        captured["report_data"] = list(report_data)
+        captured["flow_status"] = flow_status
+
+    def fake_html(report_data, report_path, flow_status, project_name="EDA Flow"):
+        pass
+
+    monkeypatch.setattr("src.log_analyzer.generate_markdown_report", fake_md)
+    monkeypatch.setattr("src.log_analyzer.generate_html_report", fake_html)
+
+    with pytest.raises(SystemExit) as exc:
+        analyze_logs(
+            str(logs_dir),
+            config={"wns_min_ns": 0.0},
+            output_path=str(tmp_path / "out.md"),
+            verbose=False,
+        )
+    assert exc.value.code == 1
+    assert captured["flow_status"] == "FAILED"
+    assert captured["report_data"][0]["status"].startswith("🔴")
+
+
+def test_analyze_logs_missing_logs_dir_exits_with_code_2(tmp_path):
+    with pytest.raises(SystemExit) as exc:
+        analyze_logs(
+            logs_dir=str(tmp_path / "missing_logs"),
+            config=None,
+            output_path=str(tmp_path / "out.md"),
+            verbose=False,
+        )
+    assert exc.value.code == 2

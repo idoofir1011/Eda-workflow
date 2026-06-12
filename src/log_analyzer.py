@@ -70,6 +70,35 @@ def find_latest_run_dir(runs_root=None):
     return max(candidates, key=lambda path: os.path.basename(path))
 
 
+def apply_wns_threshold(parsed_log, wns_min_ns):
+    """Mark a stage failed when parsed WNS is below the configured minimum."""
+    if wns_min_ns is None:
+        return parsed_log
+
+    try:
+        threshold = float(wns_min_ns)
+    except (TypeError, ValueError):
+        return parsed_log
+
+    slack = parsed_log.get("slack", "N/A")
+    if slack == "N/A":
+        return parsed_log
+
+    try:
+        wns = float(slack)
+    except ValueError:
+        return parsed_log
+
+    if wns < threshold:
+        updated = dict(parsed_log)
+        updated["status"] = "🔴 FAIL"
+        if parsed_log.get("status", "").startswith("🟢"):
+            updated["details"] = f"WNS {wns} ns below minimum {threshold} ns"
+        return updated
+
+    return parsed_log
+
+
 def resolve_run_paths(run_dir=None, logs_dir=None, output_path=None):
     """Map a run directory (or explicit paths) to logs and report locations."""
     if run_dir:
@@ -114,6 +143,7 @@ def analyze_logs(
     report_data = []
     flow_status = "PASSED"
     project_name = (config or {}).get("project_name", "EDA Flow")
+    wns_min_ns = (config or {}).get("wns_min_ns")
 
     for file_name in sorted(log_files):
         file_path = os.path.join(logs_dir, file_name)
@@ -122,7 +152,7 @@ def analyze_logs(
         with open(file_path, "r") as f:
             content = f.read()
 
-        parsed_log = parse_log(content)
+        parsed_log = apply_wns_threshold(parse_log(content), wns_min_ns)
         report_data.append(parsed_log)
         if "FAIL" in parsed_log["status"]:
             flow_status = "FAILED"

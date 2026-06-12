@@ -66,7 +66,7 @@ flowchart LR
 |-----|-------|-------------|
 | ~~Logs always land in `logs/`~~ | `scripts/run_flow.sh` | Fixed in Phase 2: per-run folders under `runs/<timestamp>/`. |
 | ~~Config does not set log/report paths~~ | `src/log_analyzer.py` | Fixed in Phase 2: `--run-dir` and auto-detect latest run. |
-| No WNS threshold in config | `config/global_cfg.json` | Phase 3 (optional): `wns_min_ns` for pass/fail in reports. |
+| ~~No WNS threshold in config~~ | `config/global_cfg.json` | Fixed in Phase 3: `wns_min_ns` marks timing fail in reports. |
 | No golden regression | — | Phase 4: compare metrics vs saved baseline. |
 
 **Recently fixed:** config-driven runner (stages, MHz, error rates, critical halt), single `parse_log()` path, reports written once, README paths, stale log cleanup at run start, runner/analyzer exit codes, shell integration tests.
@@ -133,8 +133,8 @@ flowchart TD
 
 **Goal:** Reports and tests are reliable enough to trust.
 
-- [ ] All existing tests pass; add tests for any new config-driven behavior.
-- [ ] Optional: add `wns_min_ns` threshold in config — report marks timing fail if WNS is below threshold.
+- [x] All existing tests pass; add tests for any new config-driven behavior.
+- [x] Optional: add `wns_min_ns` threshold in config — report marks timing fail if WNS is below threshold.
 - [x] Document exit codes: `0` = success, `1` = stage failure, `2` = analysis failure (or similar).
 
 **Done when:** `pytest -v` green; you can explain what each test checks in an interview.
@@ -223,7 +223,7 @@ If you can't explain a change AI made, don't merge it until you can.
 |-------|--------|----------------|
 | 1 — Make it honest | Complete | 2026-06-07 |
 | 2 — Run folders | Complete | 2026-06-08 |
-| 3 — Trust and tests | Not started | |
+| 3 — Trust and tests | Complete | 2026-06-12 |
 | 4 — Optional golden | Not started | |
 
 Update this table as you finish each phase.

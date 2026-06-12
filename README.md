@@ -36,7 +36,7 @@ python3 -m src.log_analyzer --config config/global_cfg.json
 python3 -m src.log_analyzer --run-dir runs/20260608_111154 --config config/global_cfg.json
 ```
 
-Edit `config/global_cfg.json` to change stages, target frequency, per-stage error rates, or which stages halt the flow on failure.
+Edit `config/global_cfg.json` to change stages, target frequency, per-stage error rates, WNS pass threshold (`wns_min_ns`), or which stages halt the flow on failure.
 
 ## Exit codes
 
